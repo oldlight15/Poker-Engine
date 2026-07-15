@@ -4,15 +4,12 @@ Created on Tue Jun 16 11:55:57 2026
 
 @author: gavin
 """
-import player 
-import card
 import random
 import card as c
-from collections import Counter     
-import math as m
-import numpy as np
-import statistics
+from collections import Counter
+from itertools import combinations
 import montecarlo
+import player
 
 class Game:
     
@@ -148,34 +145,73 @@ class Game:
                  
                  
     def handvalue(self, player):
-        
-        
-        hand = self.player_hands[player] | self.board
-        points = 0
-        
-        
-        
-        if self.check_royalflush(hand):
-                return 35
-        if self.check_straight(hand):
-            points += 12 
-        if self.check_flush(hand):
-            points += 13
-        if self.check_four_of_kind(hand):
-            points += 20
-        points +=  4 * self.check_pair(hand)
-        points +=  4 * self.check_three_of_kind(hand)
-        return points
-        
-    def tie_break(self, players, board): # Retunrs the highest rank in play for each player
-        
-        return [
-        max(
-            14 if card_.rank == 1 else card_.rank
-            for card_ in (self.player_hands[player_] | board)
+        """Return a fully comparable rank for a player's best five-card hand.
+
+        The first value identifies the hand category (8 is a straight flush and
+        0 is a high-card hand).  The remaining values are category-specific
+        tie breakers in descending importance.  Python compares tuples
+        lexicographically, which gives us correct poker tie breaking.
+        """
+        cards = self.player_hands[player] | self.board
+        if len(cards) < 5:
+            raise ValueError("At least five cards are required to rank a hand")
+        return max(self._rank_five(combo) for combo in combinations(cards, 5))
+
+    @staticmethod
+    def _rank_five(cards):
+        """Rank exactly five cards as (category, tie_breaker, ...)."""
+        ranks = [14 if card_.rank == 1 else card_.rank for card_ in cards]
+        counts = Counter(ranks)
+        groups = sorted(
+            ((count, rank) for rank, count in counts.items()), reverse=True
         )
-        for player_ in players
-    ]
+        is_flush = len({card_.suit for card_ in cards}) == 1
+
+        unique_ranks = set(ranks)
+        if 14 in unique_ranks:
+            unique_ranks.add(1)  # An ace may be low in A-2-3-4-5.
+        straight_high = 0
+        ordered = sorted(unique_ranks)
+        for index in range(len(ordered) - 4):
+            window = ordered[index:index + 5]
+            if window[-1] - window[0] == 4:
+                straight_high = window[-1]
+
+        if is_flush and straight_high:
+            return (8, straight_high)
+        if groups[0][0] == 4:
+            four_rank = groups[0][1]
+            kicker = max(rank for rank in ranks if rank != four_rank)
+            return (7, four_rank, kicker)
+        if groups[0][0] == 3 and groups[1][0] == 2:
+            return (6, groups[0][1], groups[1][1])
+        if is_flush:
+            return (5, *sorted(ranks, reverse=True))
+        if straight_high:
+            return (4, straight_high)
+        if groups[0][0] == 3:
+            trip_rank = groups[0][1]
+            kickers = sorted(
+                (rank for rank in ranks if rank != trip_rank), reverse=True
+            )
+            return (3, trip_rank, *kickers)
+        pair_ranks = sorted(
+            (rank for rank, count in counts.items() if count == 2), reverse=True
+        )
+        if len(pair_ranks) == 2:
+            kicker = max(rank for rank in ranks if rank not in pair_ranks)
+            return (2, pair_ranks[0], pair_ranks[1], kicker)
+        if len(pair_ranks) == 1:
+            pair_rank = pair_ranks[0]
+            kickers = sorted(
+                (rank for rank in ranks if rank != pair_rank), reverse=True
+            )
+            return (1, pair_rank, *kickers)
+        return (0, *sorted(ranks, reverse=True))
+        
+    def tie_break(self, players, board):
+        """Return complete hand ranks for compatibility with older callers."""
+        return [self.handvalue(player_) for player_ in players]
     
     def check_royalflush(self, hand): # Checks for royal flush
         royal_ranks = {1, 10, 11, 12, 13}
@@ -229,21 +265,13 @@ class Game:
                 hand_values = []
                 for x in game.players:
                     hand_values.append(game.handvalue(x))
-                if hand_values[game.players.index(player)] == max(hand_values):
-                    if hand_values.count(max(hand_values)) == 1:
+                player_value = hand_values[game.players.index(player)]
+                best_value = max(hand_values)
+                if player_value == best_value:
+                    if hand_values.count(best_value) == 1:
                         wins.append(1)
                     else:
-                        high_values = game.tie_break(game.players, game.board)
-
-                        player_index = game.players.index(player)
-                        player_high = high_values[player_index]
-                        best_high = max(high_values)
-
-                        if player_high == best_high:
-                                if high_values.count(best_high) > 1:
-                                        ties.append(1)
-                        else:
-                            wins.append(1)
+                        ties.append(1)
                             
         p_hat_wins = sum(wins) / 40000
         p_hat_ties = sum(ties) / 40000
@@ -297,17 +325,7 @@ class Game:
         if len(finalists) == 1:
             return finalists
 
-    # Break equal hand values using the updated high-card logic.
-        high_values = self.tie_break(finalists, self.board)
-        best_high = max(high_values)
-
-        winners = [
-        player_
-        for player_, high_value in zip(finalists, high_values)
-        if high_value == best_high
-    ]
-
-        return winners           
+        return finalists
 
          
     def end_of_round(self): # Runs at the end of play or when only one player is left
