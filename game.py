@@ -138,9 +138,12 @@ class Game:
           
           
     def dealhands(self, player_hands = {}): # Deals two cards to each player
-         for x in self.players:
-             if x is not player_hands.keys(): 
-                 self.player_hands[x] = {self.deal(), self.deal()}
+         for player_ in self.players:
+             if player_ not in self.player_hands:
+                 self.player_hands[player_] = {
+                self.deal(),
+                self.deal()
+            }
 
                  
                  
