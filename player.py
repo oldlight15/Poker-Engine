@@ -9,29 +9,35 @@ import random
 class Player:
     
     
-    def __init__(self, name, bot, pot = 1000):
+    def __init__(self, name, bot, cash = 1000):
         
         self.in_play = True # Tracks if the players have folded and in the final round it will evaluate to false if the player has a losing hand
         self.name = name
         self.bot = bot
-            
-        if pot > 0:
-            self.pot = int(pot)
+        self.bets = 0
+        
+        
+        if cash > 0:
+            self.cash = int(cash)
         else:
-            self.pot = 1000
+            self.cash = 1000
             
     def fold(self):
         self.in_play = False
         
     def bet(self, gamble):
-        self.pot -= gamble 
+        self.cash -= gamble 
         
     def highcard(self, game):
         return max(game.player_hands[self])
     
-    def base_ai(self, montecarlo, pot):
-       # ev = (montecarlo.p_hat_wins * pot) - ( 1 - (montecarlo.p_hat_wins + montecarlo.p_hat_ties) * pot)
+    def max_ev(self, montecarlo):
+        ev = (montecarlo.p_hat_wins * self.bets) - ( 1 - (montecarlo.p_hat_wins + montecarlo.p_hat_ties) * self.bets)
+        
+    def base_ai(self, montecarlo, bet):
+
         factor = random.random()
+        
         if  factor < .1:
             self.in_play = False
         else:

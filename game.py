@@ -21,6 +21,9 @@ class Game:
     bblind = 2
     dealer = 0
     sblind = 1
+    sblind_amount = 1 
+    bblind_amount = 2
+    
     
     def __init__(self, player_hands, pot = 1000, board = None, deck = None):
         
@@ -30,8 +33,9 @@ class Game:
         self.position = 0       # Tracks the top card of the deck
         #self.pot = pot Fix to split pot among players
         self.board = set() if board is None else set(board)
-            
-            
+        self.min_bet = 0
+        self.pot = pot  
+        
         if deck == None:
             self.deck = []
             for x in range(13):
@@ -92,13 +96,13 @@ class Game:
                 return self.bblind
             
     @classmethod        
-    def add_players(cls, playercount, pot = 1000):
+    def add_players(cls, playercount, pot=1000):
         
         for x in range(playercount):
             if x == 1:
-                cls.players.append(player.Player(f"P{x}", "player", pot))
+                cls.players.append(player.Player(f"P{x}", "player", pot / playercount ))
             else:
-                cls.players.append(player.Player(f"P{x}", "lag", pot))
+                cls.players.append(player.Player(f"P{x}", "tag", pot / playercount ))
   
            # This method needs to fixed to accomodate random AIs 
             
@@ -326,11 +330,30 @@ class Game:
             return finalists
 
         return finalists
-
-         
-    def end_of_round(self): # Runs at the end of play or when only one player is left
     
+    
+    def active_players(self): # This 
+        active_players = [
+            player_
+            for player_ in Game.players
+            if player_.in_play
+            ]
+        return active_players
+    
+    def state_of_play(self): # This function determines whether to end the round early
+        active_players = self.active_players()
+        return len(active_players) > 1
+
+
+     
+    def end_of_round(self): # Runs at the end of play or when only one player is left
+        
+        active_players = self.active_players() 
+        for player_ in active_players:
+            print(self.player_hands[player_])
+            
         winners = self.determine_winner()
+        
         if len(winners)  == 1:
             print(f"{winners[0].name} wins")
         else:
