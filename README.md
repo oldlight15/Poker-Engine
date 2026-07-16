@@ -128,8 +128,6 @@
 
 # \- Betting and raising behavior is still being developed.
 
-# \- Hand scoring and kicker comparisons need additional refinement.
-
 # \- Side pots and all-in situations are not yet supported.
 
 # \- Computer-player strategies are experimental.
@@ -144,7 +142,6 @@
 
 # 
 
-# \- Implement complete poker-hand rankings and kicker comparisons
 
 # \- Add varied AI profiles
 
